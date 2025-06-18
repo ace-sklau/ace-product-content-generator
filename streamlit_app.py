@@ -1,17 +1,11 @@
 # Import necessary libraries
-import threading
 import uuid
-import re
-import concurrent.futures
-import ast
 import streamlit as st
 import requests
 from PIL import Image, UnidentifiedImageError
 import io
-import base64
 import pandas as pd
 import numpy as np
-import time
 # import response_to_delta_table  # Uncomment if needed
 
 # Helper functions (keep the same as original)
