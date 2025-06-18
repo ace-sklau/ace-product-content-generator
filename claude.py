@@ -4,6 +4,7 @@ import json
 import os
 from taxonomy import ProductTaxonomyClassifier
 from typing import Optional, Dict, Any, List
+import streamlit as st
 
 class ClaudeQuery:
     def __init__(self, api_key: Optional[str] = None):
@@ -14,7 +15,7 @@ class ClaudeQuery:
             api_key: Anthropic API key. If None, will try to get from environment variable.
         """
         if api_key is None:
-            api_key = os.environ["ANTHROPIC_API_KEY"]
+            api_key = st.secrets["ANTHROPIC_API_KEY"]
         df = pd.read_csv(os.path.join('resources', 'taxonomy.csv'))
         self.classifier = ProductTaxonomyClassifier(api_key=api_key, taxonomy_df=df)
         self.client = anthropic.Anthropic(api_key=api_key)

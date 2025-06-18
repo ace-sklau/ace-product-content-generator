@@ -2,28 +2,14 @@ import asyncio
 from tavily import AsyncTavilyClient
 import requests
 import os
+import streamlit as st
 
 
 class upcExtract:
 
     def __init__(self):
         # self.tavily_client = AsyncTavilyClient(api_key="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") # old key tied to sklau@aceharde.com personal account
-        self.tavily_client = AsyncTavilyClient(api_key=os.environ["TAVILY_API_KEY"]) # Prod key tied to corp account, 1000 rpmin and 19000 rpmonth
-
-    def get_failed_url_content(self, url): # this works well when tavily_client.search(**q) fails to load a given url, but its a higher token cost since it is the entire content of the webpage
-        payload = {
-            "urls": url,
-            "include_images": False,
-            "extract_depth": "advanced"
-        }
-        headers = {
-            "Authorization": "Bearer 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",
-            "Content-Type": "application/json"
-        }
-
-        response = requests.request("POST", url, json=payload, headers=headers)
-
-        return(response.text)
+        self.tavily_client = AsyncTavilyClient(api_key=st.secrets["TAVILY_API_KEY"]) # Prod key tied to corp account, 1000 rpmin and 19000 rpmonth
 
 
     async def fetch_and_extract(self, upc='', queries=None, include_images=False, item_num=None, manufacturer_name=None, short_description=None):
