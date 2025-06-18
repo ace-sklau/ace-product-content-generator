@@ -8,7 +8,6 @@ import streamlit as st
 class upcExtract:
 
     def __init__(self):
-        # self.tavily_client = AsyncTavilyClient(api_key="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") # old key tied to sklau@aceharde.com personal account
         self.tavily_client = AsyncTavilyClient(api_key=st.secrets["TAVILY_API_KEY"]) # Prod key tied to corp account, 1000 rpmin and 19000 rpmonth
 
 
