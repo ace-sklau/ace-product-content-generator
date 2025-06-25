@@ -11,7 +11,7 @@ class ProductTaxonomyClassifier:
     Level 1 -> Level 2 -> Level 3 -> Attributes with valid values
     """
     
-    def __init__(self, api_key: str, taxonomy_df: pd.DataFrame):
+    def __init__(self, api_key: str):
         """
         Initialize the classifier with API key and taxonomy dataframe.
         
@@ -22,7 +22,7 @@ class ProductTaxonomyClassifier:
                  'attribute', 'valid attribute values']
         """
         self.client = anthropic.Anthropic(api_key=api_key)
-        self.taxonomy_df = self._load_and_clean_taxonomy(taxonomy_df)
+        self.taxonomy_df = self._load_and_clean_taxonomy(pd.read_csv('resources/taxonomy.csv'))
         self.model = "claude-sonnet-4-20250514"
 
     def _load_and_clean_taxonomy(self, csv_df):
@@ -33,7 +33,7 @@ class ProductTaxonomyClassifier:
         df = df.fillna('')
         
         # Convert all relevant columns to strings
-        string_columns = ['level 1 category', 'level 2 category', 'level 3 category', 'attribute']
+        string_columns = ['level 1 category', 'level 2 category', 'level 3 category', 'attribute', 'valid attribute values']
         for col in string_columns:
             df[col] = df[col].astype(str)
         
@@ -178,7 +178,12 @@ Select the most appropriate Level 3 category from the list for this product."""
             attribute_options[attribute] = valid_values_list
             attribute_list.append(f"{attribute}: {', '.join(valid_values_list)}")
         
-        system_prompt = """You are a product classification expert. Based on the product description, choose the most appropriate values for each attribute from the provided options.
+        system_prompt = """You are a product classification expert. Based on the product description, choose the most appropriate values for each attribute.
+
+For each attribute:
+- If a list of options is provided, select the most appropriate value from those options
+- If no list is provided, generate an appropriate value based on the product description
+- If you cannot determine an appropriate value, use 'N/A'
 
 Return your response in the following JSON format:
 {
@@ -186,16 +191,12 @@ Return your response in the following JSON format:
     "another_attribute": "selected_value"
 }
 
-For each attribute, select the most appropriate value from the given options. If none of the options are suitable, you may create a reasonable value. If you cannot determine an appropriate value, use 'N/A'.
-
 Return ONLY the JSON object, nothing else."""
         
         # Build the attribute options text
         attributes_text = "\n".join([f"- {attr}" for attr in attribute_list])
         
         user_message = f"""Product Description: {product_description}
-
-Category: {level_3_taxonomy}
 
 Please select appropriate values for each of the following attributes:
 
