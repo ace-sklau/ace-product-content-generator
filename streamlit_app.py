@@ -85,9 +85,17 @@ if 'product_data' not in st.session_state:
 def initial_product_lookup(upc_ean=None, manufacturer=None, item_number=None):
   
     if upc_ean:
-        return claude_client.search(initial_claude_query, tavily_client.run_upc_search(upc=upc_ean))
+        tavily_search = tavily_client.run_upc_search(upc=upc_ean)
+        if tavily_search == "":
+            return ""
+        else:
+            return claude_client.search(initial_claude_query, tavily_search)
     else:
-        return claude_client.search(initial_claude_query, tavily_client.run_vendor_item_search(item_num=item_number, manufacturer_name=manufacturer))
+        tavily_search = tavily_client.run_vendor_item_search(item_num=item_number, manufacturer_name=manufacturer)
+        if tavily_search == "":
+            return ""
+        else:
+            return claude_client.search(initial_claude_query, tavily_search)
 
 def process_taxonomy(product_data):
     """Mock function for taxonomy selection processing"""
@@ -148,11 +156,18 @@ def input_page():
                     else:
                         result = initial_product_lookup(manufacturer=manufacturer.strip(), 
                                                       item_number=item_number.strip())
-                # print(result)
-                st.session_state.product_data['initial'] = result
-                st.session_state.page = 'taxonomy'
-                st.session_state.current_step = 2
-                st.rerun()
+                
+                # Check if product lookup failed
+                print("RESULT")
+                print(result)
+                if result == "":
+                    st.error("❌ No product was found with the provided information. Please verify your input and try again.")
+                else:
+                    # print(result)
+                    st.session_state.product_data['initial'] = result
+                    st.session_state.page = 'taxonomy'
+                    st.session_state.current_step = 2
+                    st.rerun()
             else:
                 st.error(message)
 

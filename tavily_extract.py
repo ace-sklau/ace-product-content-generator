@@ -26,7 +26,8 @@ class upcExtract:
             for result in response.get('results', []):
                 if result.get('score', 0) > 0.5:
                     output += f"Item title: {result['title']}, Item Information: {result['content']}; "            
-
+        print("TAVILY OUTPUT")
+        print(output)
         return output
 
     async def search_by_vendor_item(self, item_num, manufacturer_name):
