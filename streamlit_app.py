@@ -35,7 +35,7 @@ initial_claude_query = """
 You create product data about new products that will be put onto the AceHardware website for sale. 
 When generating the product data, please use concise description for each product, highlighting the products features and benefits of use.
 Also include a list of features of the product (in bullet format) and do not list the price for the product. 
-Finally include the UPC and the manufacturer name (and manufacturer code). 
+Finally include the UPC and the manufacturer name (and manufacturer code) if those values can be found in the provided content. 
 
 Structure the response as valid JSON with the following fields:
 - UPC: item upc/ean code
@@ -52,13 +52,17 @@ Use the following product information to produce this content:
 
 final_claude_query = """
 You create product data about new products that will be put onto the AceHardware website for sale. 
-When generating the product data, please use concise description for each product, highlighting the products features and benefits of use.
+When generating the product description highlight the products features and benefits of use.
 Also include a list of features of the product (in bullet format) and do not list the price for the product. 
-Finally include the UPC and the manufacturer name (and manufacturer code). 
+Finally include the UPC and the manufacturer name (and manufacturer code) if they can be found in the provided content. 
 
 Structure the response as valid JSON with the following fields:
-- Product_Description: detailed product description
-- Product_Features: array of all features, including references to provided attributes if possible
+- UPC: item upc/ean code
+- Vendor: vendor/manufacturer name
+- Item_Number: manufacturer item/model number
+- Product_Title: concise product title
+- Product_Description: detailed product description that can be used on an eccomerce site, using marketing language
+- Product_Features: array of all features for the product, these should be based off of the attributes and should give the benefit of a given feature as well.
 
 Return only valid JSON without any formatting indicators or additional text.
 
@@ -86,12 +90,14 @@ def initial_product_lookup(upc_ean=None, manufacturer=None, item_number=None):
   
     if upc_ean:
         tavily_search = tavily_client.run_upc_search(upc=upc_ean)
+        st.session_state.product_data['tavily_context'] = tavily_search
         if tavily_search == "":
             return ""
         else:
             return claude_client.search(initial_claude_query, tavily_search)
     else:
         tavily_search = tavily_client.run_vendor_item_search(item_num=item_number, manufacturer_name=manufacturer)
+        st.session_state.product_data['tavily_context'] = tavily_search
         if tavily_search == "":
             return ""
         else:
@@ -299,7 +305,7 @@ def attributes_page():
             st.session_state.processing_attributes = True
             with st.spinner("Processing attributes..."):
                 st.session_state.product_data['attributes'] = process_attributes(
-                    st.session_state.product_data['initial'], 
+                    st.session_state.product_data['tavily_context'], 
                     st.session_state.product_data['taxonomy']['level_3_category']
                 )
             del st.session_state.processing_attributes
@@ -435,7 +441,7 @@ def description_and_features_page():
     # Get data from existing session state
     if 'final' not in st.session_state.product_data:
         with st.spinner("Generating romance text and features..."):
-            st.session_state.product_data['final'] = claude_client.search(initial_claude_query, str(st.session_state.product_data['initial']) + str(st.session_state.product_data['attributes']))
+             st.session_state.product_data['final'] = claude_client.search(final_claude_query, str(st.session_state.product_data['initial']) + str(st.session_state.product_data['attributes']))
 
     # Get data from existing session state
     initial_data = st.session_state.product_data['initial']

@@ -144,6 +144,8 @@ Select the most appropriate Level 3 category from the list for this product."""
         Returns:
             Dict[str, str]: Dictionary mapping attribute names to selected values
         """
+        print("ATTRIBUTE PRODUCT DESCRIPTION")
+        print(product_description)
         # Get attributes for the given level 3
         attributes_df = self.taxonomy_df[
             self.taxonomy_df['level 3 category'] == level_3_taxonomy
@@ -178,12 +180,13 @@ Select the most appropriate Level 3 category from the list for this product."""
             attribute_options[attribute] = valid_values_list
             attribute_list.append(f"{attribute}: {', '.join(valid_values_list)}")
         
-        system_prompt = """You are a product classification expert. Based on the product description, choose the most appropriate values for each attribute.
+        system_prompt = """You are a product classification expert. Based on the product information, choose the most appropriate values for each attribute.
 
 For each attribute:
 - If a list of options is provided, select the most appropriate value from those options
-- If no list is provided, generate an appropriate value based on the product description
+- If no list is provided, generate an appropriate value based on the product information
 - If you cannot determine an appropriate value, use 'N/A'
+- Do not include the sub brand in the brand name
 
 Return your response in the following JSON format:
 {

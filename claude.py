@@ -58,6 +58,7 @@ class ClaudeQuery:
             return self._parse_response(response_text)
             
         except Exception as e:
+            print(query+context)
             print(f"Error in API call: {e}")
             return [{"error": str(e)}]
 

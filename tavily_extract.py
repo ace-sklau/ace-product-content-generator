@@ -9,25 +9,33 @@ class upcExtract:
         self.tavily_client = AsyncTavilyClient(api_key) # Prod key tied to corp account, 1000 rpmin and 19000 rpmonth
 
     async def search_by_upc_ean(self, upc):
+        # queries = [
+        #     {"query": "What product corresponds to the UPC/EAN code " + upc + "?", "search_depth": "advanced", "max_results": 2, "include_images": False, "exclude_domains": [("www.acehardware.com")]},
+        #     {"query": "product information UPC EAN " + upc + "", "search_depth": "advanced", "max_results": 2, "include_images": False, "exclude_domains": [("www.acehardware.com")]},
+        #     {"query": "UPC EAN lookup " + upc + "", "search_depth": "advanced", "max_results": 2, "include_images": False, "exclude_domains": [("www.acehardware.com")]},
+        #     {"query": "UPC " + upc + " product", "search_depth": "advanced", "max_results": 2, "include_images": False, "exclude_domains": [("www.acehardware.com")]},
+        #     {"query": "EAN " + upc + " product", "search_depth": "advanced", "max_results": 2, "include_images": False, "exclude_domains": [("www.acehardware.com")]}
+        # ]
         queries = [
-            {"query": "What product corresponds to the UPC/EAN code " + upc + "?", "search_depth": "advanced", "max_results": 2, "include_images": False, "exclude_domains": [("www.acehardware.com")]},
-            {"query": "product information UPC EAN " + upc + "", "search_depth": "advanced", "max_results": 2, "include_images": False, "exclude_domains": [("www.acehardware.com")]},
-            {"query": "UPC EAN lookup " + upc + "", "search_depth": "advanced", "max_results": 2, "include_images": False, "exclude_domains": [("www.acehardware.com")]},
-            {"query": "UPC " + upc + " product", "search_depth": "advanced", "max_results": 2, "include_images": False, "exclude_domains": [("www.acehardware.com")]},
-            {"query": "EAN " + upc + " product", "search_depth": "advanced", "max_results": 2, "include_images": False, "exclude_domains": [("www.acehardware.com")]}
+            {"query": f"UPC {upc} product specifications details features", "search_depth": "advanced", "max_results": 3, "include_images": False, "exclude_domains": [("www.acehardware.com")]},
+            {"query": f"barcode {upc} product name brand model specifications", "search_depth": "advanced", "max_results": 3, "include_images": False, "exclude_domains": [("www.acehardware.com")]},
+            {"query": f"UPC lookup {upc} detailed product information description", "search_depth": "advanced", "max_results": 3, "include_images": False, "exclude_domains": [("www.acehardware.com")]},
+            {"query": f'"{upc}" product database specifications features', "search_depth": "advanced", "max_results": 3, "include_images": False, "exclude_domains": [("www.acehardware.com")]},
+            {"query": f"EAN {upc} complete product details manufacturer", "search_depth": "advanced", "max_results": 3, "include_images": False, "exclude_domains": [("www.acehardware.com")]}
         ]
         
         # Perform the search queries concurrently
         responses = await asyncio.gather(*[self.tavily_client.search(**q) for q in queries])
-        
+        print("RESPONSES FROM TAVILY")
+        print(responses)
         output = ""
         # Filter URLs with a score greater than 0.5
         for response in responses:
             for result in response.get('results', []):
                 if result.get('score', 0) > 0.5:
                     output += f"Item title: {result['title']}, Item Information: {result['content']}; "            
-        print("TAVILY OUTPUT")
-        print(output)
+        # print("TAVILY OUTPUT")
+        # print(output)
         return output
 
     async def search_by_vendor_item(self, item_num, manufacturer_name):

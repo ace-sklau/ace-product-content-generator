@@ -35,7 +35,7 @@ initial_claude_query = """
 You create product data about new products that will be put onto the AceHardware website for sale. 
 When generating the product data, please use concise description for each product, highlighting the products features and benefits of use.
 Also include a list of features of the product (in bullet format) and do not list the price for the product. 
-Finally include the UPC and the manufacturer name (and manufacturer code). 
+Finally include the UPC and the manufacturer name (and manufacturer code) if those values can be found in the provided content. 
 
 Structure the response as valid JSON with the following fields:
 - UPC: item upc/ean code
@@ -52,13 +52,17 @@ Use the following product information to produce this content:
 
 final_claude_query = """
 You create product data about new products that will be put onto the AceHardware website for sale. 
-When generating the product data, please use concise description for each product, highlighting the products features and benefits of use.
+When generating the product description highlight the products features and benefits of use.
 Also include a list of features of the product (in bullet format) and do not list the price for the product. 
-Finally include the UPC and the manufacturer name (and manufacturer code). 
+Finally include the UPC and the manufacturer name (and manufacturer code) if they can be found in the provided content. 
 
 Structure the response as valid JSON with the following fields:
-- Product_Description: detailed product description
-- Product_Features: array of all features, including references to provided attributes if possible
+- UPC: item upc/ean code
+- Vendor: vendor/manufacturer name
+- Item_Number: manufacturer item/model number
+- Product_Title: concise product title
+- Product_Description: detailed product description that can be used on an eccomerce site, using marketing language
+- Product_Features: array of all features for the product, these should be based off of the attributes and should give the benefit of a given feature as well.
 
 Return only valid JSON without any formatting indicators or additional text.
 
@@ -85,16 +89,24 @@ if 'product_data' not in st.session_state:
 def initial_product_lookup(upc_ean=None, manufacturer=None, item_number=None):
   
     if upc_ean:
-        return claude_client.search(initial_claude_query, tavily_client.run_upc_search(upc=upc_ean))
+        tavily_search = tavily_client.run_upc_search(upc=upc_ean)
+        st.session_state.product_data['tavily_context'] = tavily_search
+        if tavily_search == "":
+            return ""
+        else:
+            return claude_client.search(initial_claude_query, tavily_search)
     else:
-        return claude_client.search(initial_claude_query, tavily_client.run_vendor_item_search(item_num=item_number, manufacturer_name=manufacturer))
+        tavily_search = tavily_client.run_vendor_item_search(item_num=item_number, manufacturer_name=manufacturer)
+        st.session_state.product_data['tavily_context'] = tavily_search
+        if tavily_search == "":
+            return ""
+        else:
+            return claude_client.search(initial_claude_query, tavily_search)
 
 def process_taxonomy(product_data):
-    """Mock function for taxonomy selection processing"""
     return taxonomy_classifier.classify_product(str(product_data))
 
 def process_attributes(product_data, taxonomy_data):
-    """Mock function for attribute population"""
     return taxonomy_classifier.get_attributes(taxonomy_data, product_data)
 
 
@@ -123,8 +135,8 @@ def validate_taxonomy_selection(level_1, level_2, level_3):
 
 def input_page():
     """Initial input page"""
-    st.title("Product Processing - Initial Lookup")
-    st.write("Enter product information to begin the processing workflow:")
+    st.title("Product Content Generation - Initial Lookup")
+    st.write("Enter product information to begin generating content:")
     
     with st.form("product_form"):
         st.subheader("Method 1: UPC/EAN")
@@ -148,11 +160,18 @@ def input_page():
                     else:
                         result = initial_product_lookup(manufacturer=manufacturer.strip(), 
                                                       item_number=item_number.strip())
-                # print(result)
-                st.session_state.product_data['initial'] = result
-                st.session_state.page = 'taxonomy'
-                st.session_state.current_step = 2
-                st.rerun()
+                
+                # Check if product lookup failed
+                print("RESULT")
+                print(result)
+                if result == "":
+                    st.error("❌ No product was found with the provided information. Please verify your input and try again.")
+                else:
+                    # print(result)
+                    st.session_state.product_data['initial'] = result
+                    st.session_state.page = 'taxonomy'
+                    st.session_state.current_step = 2
+                    st.rerun()
             else:
                 st.error(message)
 
@@ -186,61 +205,61 @@ def taxonomy_page():
         
         # Get unique primary categories from dataframe
         primary_options = sorted(df['level 1 category'].unique().tolist())
-        primary_options_with_empty = ["-- Select Primary Category --"] + primary_options
+        primary_options_with_empty = ["-- Select Level 1 Taxonomy --"] + primary_options
         
-        # Find current primary category index
+        # Find current Level 1 Taxonomy index
         primary_index = 0
         if current_taxonomy.get('level_1_category') and current_taxonomy['level_1_category'] in primary_options:
             primary_index = primary_options_with_empty.index(current_taxonomy['level_1_category'])
         
-        primary_selection = st.selectbox("Primary Category", 
+        primary_selection = st.selectbox("Level 1 Taxonomy", 
                                        options=primary_options_with_empty,
                                        index=primary_index,
                                        key="primary_cat_select")
         
         # Use selected value or fall back to current taxonomy
-        if primary_selection == "-- Select Primary Category --":
+        if primary_selection == "-- Select Level 1 Taxonomy --":
             level_1_category = None
         else:
             level_1_category = primary_selection
         
-        # Get secondary categories for selected primary category
+        # Get secondary categories for selected Level 1 Taxonomy
         secondary_options = sorted(df[df['level 1 category'] == level_1_category]['level 2 category'].unique().tolist())
-        secondary_options_with_empty = ["-- Select Secondary Category --"] + secondary_options
+        secondary_options_with_empty = ["-- Select Level 2 Taxonomy --"] + secondary_options
         
-        # Find current secondary category index
+        # Find current Level 2 Taxonomy index
         secondary_index = 0
         if current_taxonomy.get('level_2_category') and current_taxonomy['level_2_category'] in secondary_options:
             secondary_index = secondary_options_with_empty.index(current_taxonomy['level_2_category'])
         
-        secondary_selection = st.selectbox("Secondary Category",
+        secondary_selection = st.selectbox("Level 2 Taxonomy",
                                          options=secondary_options_with_empty,
                                          index=secondary_index,
                                          key="secondary_cat_select")
         
         # Use selected value or fall back to current taxonomy
-        if secondary_selection == "-- Select Secondary Category --":
+        if secondary_selection == "-- Select Level 2 Taxonomy --":
             level_2_category = None
         else:
             level_2_category = secondary_selection
                 
-        # Get product types for selected primary and secondary categories
+        # Get Level 3 Taxonomys for selected primary and secondary categories
         product_type_options = sorted(df[(df['level 1 category'] == level_1_category) & 
                                     (df['level 2 category'] == level_2_category)]['level 3 category'].unique().tolist())
-        product_type_options_with_empty = ["-- Select Product Type --"] + product_type_options
+        product_type_options_with_empty = ["-- Select Level 3 Taxonomy --"] + product_type_options
         
-        # Find current product type index
+        # Find current Level 3 Taxonomy index
         product_type_index = 0
         if current_taxonomy.get('level_3_category') and current_taxonomy['level_3_category'] in product_type_options:
             product_type_index = product_type_options_with_empty.index(current_taxonomy['level_3_category'])
         
-        product_type_selection = st.selectbox("Product Type",
+        product_type_selection = st.selectbox("Level 3 Taxonomy",
                                             options=product_type_options_with_empty,
                                             index=product_type_index,
                                             key="product_type_select")
         
         # Use selected value or fall back to current taxonomy
-        if product_type_selection == "-- Select Product Type --":
+        if product_type_selection == "-- Select Level 3 Taxonomy --":
             level_3_category = None
         else:
             level_3_category = product_type_selection
@@ -286,7 +305,7 @@ def attributes_page():
             st.session_state.processing_attributes = True
             with st.spinner("Processing attributes..."):
                 st.session_state.product_data['attributes'] = process_attributes(
-                    st.session_state.product_data['initial'], 
+                    st.session_state.product_data['tavily_context'], 
                     st.session_state.product_data['taxonomy']['level_3_category']
                 )
             del st.session_state.processing_attributes
@@ -422,7 +441,7 @@ def description_and_features_page():
     # Get data from existing session state
     if 'final' not in st.session_state.product_data:
         with st.spinner("Generating romance text and features..."):
-            st.session_state.product_data['final'] = claude_client.search(initial_claude_query, str(st.session_state.product_data['initial']) + str(st.session_state.product_data['attributes']))
+             st.session_state.product_data['final'] = claude_client.search(final_claude_query, str(st.session_state.product_data['initial']) + str(st.session_state.product_data['attributes']))
 
     # Get data from existing session state
     initial_data = st.session_state.product_data['initial']
@@ -523,7 +542,7 @@ def description_and_features_page():
         st.session_state.page = 'attributes'
         st.session_state.current_step = 3
         st.rerun()
-    
+
     if add_feature and new_feature.strip():
         st.session_state.temp_features.append(new_feature.strip())
         st.rerun()
@@ -531,8 +550,6 @@ def description_and_features_page():
     if next_clicked:
         # Save the edited features
         final_features = edited_features.copy()
-        if new_feature.strip():
-            final_features.append(new_feature.strip())
         
         # Update the final data with modifications
         updated_final = final_data.copy()
@@ -541,9 +558,11 @@ def description_and_features_page():
         # Save to session state
         st.session_state.product_data['final'] = updated_final
         st.session_state.pop('temp_features', None) # Clear temp features
+        st.session_state.product_data['content'] = 'completed' # Necessary so generation progress knows this step is completed
         
         st.session_state.page = 'final'
         st.rerun()
+
 
 
 
@@ -623,7 +642,7 @@ def final_page():
                 st.download_button(
                     label="Download JSON",
                     data=results_json,
-                    file_name="product_processing_results.json",
+                    file_name=f"{st.session_state.product_data['final'][0]['Vendor']}_{st.session_state.product_data['final'][0]['Item_Number']}.json",
                     mime="application/json"
                 )
         
@@ -643,7 +662,7 @@ def main():
     # Sidebar for navigation and status
     with st.sidebar:
         st.image("assets/images/ace-hardware-logo.png", width=150)
-        st.header("Processing Progress")
+        st.header("Generation Progress")
         # Progress indicator
         steps = {
             'input': '1. Initial Product Lookup',
@@ -658,7 +677,7 @@ def main():
         for page_key, step_name in steps.items():
             if page_key == current_page:
                 st.write(f"🔄 **{step_name}**")
-            elif page_key in ['input'] or (page_key in st.session_state.product_data or page_key == 'final' and len(st.session_state.product_data) >= 3):
+            elif page_key in ['input'] or page_key in st.session_state.product_data or (page_key == 'final' and len(st.session_state.product_data) >= 5):
                 st.write(f"✅ {step_name}")
             else:
                 st.write(f"⏳ {step_name}")
